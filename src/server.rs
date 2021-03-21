@@ -4,14 +4,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 use crate::hash_ring::RingType;
-use crate::network::{remote::SendRemoteMessage, DistributeMessage, DistributeAndWait, GetNodeAddr, Network};
+use crate::network::{DistributeMessage, DistributeAndWait, Network};
 use crate::session::{self, Session};
 
 pub struct Server {
     rooms: HashMap<String, HashSet<String>>,
     sessions: HashMap<String, Addr<Session>>,
     net: Addr<Network>,
-    count: u64,
+    _count: u64,
     ring: RingType,
     node_id: NodeId,
 }
@@ -22,7 +22,7 @@ impl Server {
             rooms: HashMap::new(),
             sessions: HashMap::new(),
             net: addr,
-            count: 0,
+            _count: 0,
             ring: ring,
             node_id: node_id,
         }
@@ -68,7 +68,7 @@ impl Actor for Server {
 impl Handler<Connect> for Server {
     type Result = ();
 
-    fn handle(&mut self, msg: Connect, ctx: &mut Context<Self>) {
+    fn handle(&mut self, msg: Connect, _ctx: &mut Context<Self>) {
         self.sessions.insert(msg.0, msg.1);
     }
 }
@@ -76,7 +76,7 @@ impl Handler<Connect> for Server {
 impl Handler<Disconnect> for Server {
     type Result = ();
 
-    fn handle(&mut self, msg: Disconnect, ctx: &mut Context<Self>) {
+    fn handle(&mut self, msg: Disconnect, _ctx: &mut Context<Self>) {
         self.sessions.remove(&msg.0);
         println!("members: {:?}", self.sessions.keys());
     }
@@ -85,7 +85,7 @@ impl Handler<Disconnect> for Server {
 impl Handler<Join> for Server {
     type Result = ();
 
-    fn handle(&mut self, msg: Join, ctx: &mut Context<Self>) {
+    fn handle(&mut self, msg: Join, _ctx: &mut Context<Self>) {
         if let Some(ref mut room) = self.rooms.get_mut(&msg.room_id) {
             room.insert(msg.uid);
         } else {
@@ -98,7 +98,7 @@ impl Handler<Join> for Server {
 impl Handler<SendRecipient> for Server {
     type Result = ();
 
-    fn handle(&mut self, msg: SendRecipient, ctx: &mut Context<Self>) {
+    fn handle(&mut self, msg: SendRecipient, _ctx: &mut Context<Self>) {
         if let Some(session) = self.sessions.get(&msg.recipient_id) {
             // user found on this server
             session.do_send(session::TextMessage {
@@ -141,7 +141,7 @@ pub struct CreateRoom {
 impl Handler<CreateRoom> for Server {
     type Result = ();
 
-    fn handle(&mut self, msg: CreateRoom, ctx: &mut Context<Self>) {
+    fn handle(&mut self, msg: CreateRoom, _ctx: &mut Context<Self>) {
         let ring = self.ring.read().unwrap();
         let node_id = ring.get_node(msg.room_id.clone()).unwrap();
 
@@ -152,7 +152,7 @@ impl Handler<CreateRoom> for Server {
                 .do_send(DistributeMessage(msg.room_id.clone(), msg));
         }
 
-        if let Some(ref mut room) = self.rooms.get_mut(&msg.room_id) {
+        if let Some(_room) = self.rooms.get_mut(&msg.room_id) {
             return;
         } else {
             self.rooms.insert(msg.room_id.clone(), HashSet::new());
@@ -173,7 +173,7 @@ impl Message for GetMembers {
 impl Handler<GetMembers> for Server {
     type Result = Response<Vec<String>, ()>;
 
-    fn handle(&mut self, msg: GetMembers, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: GetMembers, _ctx: &mut Context<Self>) -> Self::Result {
         if let Some(ref mut sessions) = self.rooms.get_mut(&msg.room_id) {
             let mut members: Vec<String> = Vec::new();
 
@@ -197,7 +197,7 @@ impl Handler<GetMembers> for Server {
 impl Handler<Rebalance> for Server {
     type Result = ();
 
-    fn handle(&mut self, _: Rebalance, ctx: &mut Context<Self>) {
+    fn handle(&mut self, _: Rebalance, _ctx: &mut Context<Self>) {
         let ring = self.ring.read().unwrap();
         // let node_id = ring.get_node(msg.room_id.clone()).unwrap();
 

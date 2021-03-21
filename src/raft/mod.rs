@@ -3,7 +3,7 @@ extern crate actix_raft;
 use actix::prelude::*;
 use actix_raft::{
     config::{Config, SnapshotPolicy},
-    NodeId, Raft, RaftMetrics,
+    NodeId, Raft,
 };
 
 use crate::hash_ring::RingType;

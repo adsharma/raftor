@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use crate::config::{ConfigSchema, NetworkType, NodeInfo};
 use crate::hash_ring::{self, RingType};
 use crate::network::{HandlerRegistry, Network, DiscoverNodes, SetClusterState, NetworkState};
-use crate::raft::{RaftClient, MemRaft, RaftBuilder, InitRaft, AddNode};
+use crate::raft::{RaftClient, InitRaft};
 use crate::server::Server;
 use crate::utils;
 
@@ -23,9 +23,9 @@ pub struct Raftor {
     pub cluster_net: Addr<Network>,
     pub server: Addr<Server>,
     discovery_host: String,
-    ring: RingType,
+    _ring: RingType,
     registry: Arc<RwLock<HandlerRegistry>>,
-    info: NodeInfo,
+    _info: NodeInfo,
 }
 
 impl Raftor {
@@ -93,10 +93,10 @@ impl Raftor {
             cluster_net: cluster_net_addr,
             raft: raft,
             server: server_addr,
-            ring: ring,
+            _ring: ring,
             registry: registry,
             discovery_host: config.discovery_host.clone(),
-            info: node_info,
+            _info: node_info,
         }
     }
 
@@ -115,7 +115,7 @@ impl Actor for Raftor {
     fn started(&mut self, ctx: &mut Context<Self>) {
         fut::wrap_future::<_, Self>(self.cluster_net.send(DiscoverNodes))
             .map_err(|err, _, _| panic!(err))
-            .and_then(|res, act, ctx| {
+            .and_then(|res, act, _ctx| {
                 let res = res.unwrap();
                 let nodes = res.0;
                 let join_mode = res.1;
@@ -123,7 +123,7 @@ impl Actor for Raftor {
                 fut::wrap_future::<_, Self>(act.raft.send(InitRaft{ nodes, net: act.cluster_net.clone(), server: act.server.clone(),  join_mode: join_mode }))
                     .map_err(|err, _, _| panic!(err))
                     .and_then(move |_, act, ctx| {
-                        let mut client = Client::default();
+                        let client = Client::default();
                         let cluster_nodes_route = format!("http://{}/cluster/join", act.discovery_host.as_str());
 
                         act.app_net.do_send(SetClusterState(NetworkState::Cluster));
@@ -134,10 +134,10 @@ impl Actor for Raftor {
                                                         .header("Content-Type", "application/json")
                                                         .send_json(&act.id))
                                 .map_err(|err, _, _| println!("Error joining cluster {:?}", err))
-                                .and_then(|res, act, ctx| {
+                                .and_then(|_res, _act, _ctx| {
                                     fut::wrap_future::<_, Self>(Delay::new(Instant::now() + Duration::from_secs(1)))
                                         .map_err(|_, _, _| ())
-                                        .and_then(|_, act, ctx| {
+                                        .and_then(|_, _act, _ctx| {
 //                                            act.raft.do_send(AddNode(act.id));
                                             fut::ok(())
                                         })

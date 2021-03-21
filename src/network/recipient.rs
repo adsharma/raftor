@@ -39,7 +39,7 @@ where
                     let body = serde_json::to_string(&res).unwrap();
                     let _ = sender.send(body);
                 }
-                Err(e) => (),
+                Err(_e) => (),
             }
             Ok::<_, ()>(())
         }))

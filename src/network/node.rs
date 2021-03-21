@@ -88,7 +88,7 @@ impl Actor for Node {
         ctx.notify(Connect);
     }
 
-    fn stopped(&mut self, ctx: &mut Context<Self>) {
+    fn stopped(&mut self, _ctx: &mut Context<Self>) {
         info!("Node #{} disconnected", self.id);
         self.state = NodeState::Registered;
     }

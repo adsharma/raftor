@@ -3,33 +3,25 @@ use actix_cors::Cors;
 use actix_files as fs;
 use actix_web::{
     http::header, middleware::Logger, web, App, Error, HttpRequest, HttpResponse, HttpServer,
-    Responder,
-    error
 };
 use actix_web_actors::ws;
-use config;
 use futures::Future;
-use serde::Deserialize;
-use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 use actix_raft::NodeId;
 
 
 use raftor::{
-    config::{ConfigSchema, NodeInfo},
-    hash_ring,
     network::{GetNode, GetNodes, GetClusterState, Network},
     raftor::Raftor,
     server::{self, Server},
     session::Session,
-    utils,
     raft::{RaftClient, ChangeRaftClusterConfig},
 };
 
 fn index_route(
     req: HttpRequest,
-    stream: web::Payload,
+    _stream: web::Payload,
     srv: web::Data<Arc<ServerData>>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
     let uid = req.match_info().get("uid").unwrap_or("");
@@ -42,8 +34,8 @@ fn index_route(
 
 fn join_cluster_route(
     node_id: web::Json<NodeId>,
-    req: HttpRequest,
-    stream: web::Payload,
+    _req: HttpRequest,
+    _stream: web::Payload,
     srv: web::Data<Arc<ServerData>>,
 ) ->  HttpResponse {
 
@@ -54,7 +46,7 @@ fn join_cluster_route(
 
 fn members_route(
     req: HttpRequest,
-    stream: web::Payload,
+    _stream: web::Payload,
     srv: web::Data<Arc<ServerData>>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
     let room_id = req.match_info().get("room_id").unwrap_or("");
@@ -68,8 +60,8 @@ fn members_route(
 }
 
 fn nodes_route(
-    req: HttpRequest,
-    stream: web::Payload,
+    _req: HttpRequest,
+    _stream: web::Payload,
     srv: web::Data<Arc<ServerData>>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
     srv.net
@@ -79,8 +71,8 @@ fn nodes_route(
 }
 
 fn state_route(
-    req: HttpRequest,
-    stream: web::Payload,
+    _req: HttpRequest,
+    _stream: web::Payload,
     srv: web::Data<Arc<ServerData>>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
     srv.net
@@ -91,7 +83,7 @@ fn state_route(
 
 fn room_route(
     req: HttpRequest,
-    stream: web::Payload,
+    _stream: web::Payload,
     srv: web::Data<Arc<ServerData>>,
 ) -> HttpResponse {
     let room_id = req.match_info().get("room_id").unwrap_or("");
@@ -126,7 +118,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let public_address = args[3].as_str();
 
-    let mut raftor = Raftor::new();
+    let raftor = Raftor::new();
 
     let state = Arc::new(ServerData {
         server: raftor.server.clone(),

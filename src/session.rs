@@ -13,7 +13,7 @@ const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub struct Session {
     id: String,
-    room: String,
+    _room: String,
     count: u64,
     server: Addr<Server>,
     hb: Instant,
@@ -23,7 +23,7 @@ impl Session {
     pub fn new(id: &str, room: &str, server: Addr<Server>) -> Self {
         Session {
             id: id.to_owned(),
-            room: room.to_owned(),
+            _room: room.to_owned(),
             server: server,
             count: 0,
             hb: Instant::now(),
@@ -63,7 +63,7 @@ impl Actor for Session {
         self.server
             .send(server::Connect(self.id.to_owned(), addr.clone()))
             .into_actor(self)
-            .then(|res, act, ctx| {
+            .then(|res, _act, ctx| {
                 match res {
                     Ok(_) => (),
                     _ => ctx.stop(),

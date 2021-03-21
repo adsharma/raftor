@@ -1,15 +1,15 @@
 use actix::prelude::*;
 use actix_raft::NodeId;
-use log::error;
+
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use tokio::io::WriteHalf;
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 
-use crate::network::{HandlerRegistry, Network, NodeCodec, NodeRequest, NodeResponse, NodeDisconnect, RestoreNode, Handshake};
+use crate::network::{HandlerRegistry, Network, NodeCodec, NodeRequest, NodeResponse, NodeDisconnect, Handshake};
 use crate::config::NetworkType;
-use crate::raft::{AddNode, RemoveNode};
+
 
 // NodeSession
 pub struct NodeSession {
@@ -61,7 +61,7 @@ impl Actor for NodeSession {
         }
     }
 
-    fn stopped(&mut self, ctx: &mut Context<Self>) {
+    fn stopped(&mut self, _ctx: &mut Context<Self>) {
         self.network.do_send(NodeDisconnect(self.id.unwrap()));
     }
 }

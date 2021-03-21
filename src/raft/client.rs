@@ -1,15 +1,15 @@
 use actix::prelude::*;
 use actix_raft::{
-    admin::{InitWithConfig, ProposeConfigChange, ProposeConfigChangeError},
+    admin::{InitWithConfig, ProposeConfigChange},
     messages::*,
-    NodeId, Raft, RaftMetrics,
+    NodeId,
 };
-use log::debug;
+
 use std::time::{Duration, Instant};
 use std::sync::{Arc, RwLock};
 use serde::{Serialize, Deserialize};
 use tokio::timer::Delay;
-use crate::network::{Network, remote::SendRemoteMessage, DiscoverNodes, GetCurrentLeader, GetNodeById, HandlerRegistry};
+use crate::network::{Network, remote::SendRemoteMessage, GetCurrentLeader, GetNodeById, HandlerRegistry};
 use crate::raft::{
     storage::{MemoryStorageData, MemoryStorageError, MemoryStorageResponse},
     RaftBuilder, MemRaft,
@@ -35,7 +35,7 @@ pub struct RaftClient {
 impl Actor for RaftClient {
     type Context = Context<Self>;
 
-    fn started(&mut self, ctx: &mut Context<Self>) {}
+    fn started(&mut self, _ctx: &mut Context<Self>) {}
 }
 
 impl RaftClient {
@@ -87,7 +87,7 @@ impl Handler<ChangeRaftClusterConfig> for RaftClient {
         ctx.spawn(
             fut::wrap_future::<_, Self>(self.net.as_ref().unwrap().send(GetCurrentLeader))
                 .map_err(|err, _, _| panic!(err))
-                .and_then(move |res, act, ctx| {
+                .and_then(move |res, act, _ctx| {
                     let leader = res.unwrap();
 
                     if leader == act.id {
@@ -96,7 +96,7 @@ impl Handler<ChangeRaftClusterConfig> for RaftClient {
                             return fut::Either::A(
                                 fut::wrap_future::<_, Self>(raft.send(payload))
                                     .map_err(|err, _, _| panic!(err))
-                                    .and_then(move |res, act, ctx| {
+                                    .and_then(move |_res, _act, ctx| {
                                         for id in nodes_to_add.iter() {
                                             ctx.notify(AddNode(*id));
                                         }
@@ -109,14 +109,14 @@ impl Handler<ChangeRaftClusterConfig> for RaftClient {
 
                     fut::Either::B(
                         fut::wrap_future::<_, Self>(act.net.as_ref().unwrap().send(GetNodeById(leader)))
-                            .map_err(move |err, _, _| panic!("Node {} not found", leader))
-                            .and_then(move |node, act, ctx| {
+                            .map_err(move |_err, _, _| panic!("Node {} not found", leader))
+                            .and_then(move |node, _act, _ctx| {
                                 println!("-------------- Sending remote proposal to leader");
                                 fut::wrap_future::<_, Self>(
                                     node.unwrap().send(SendRemoteMessage(msg.clone())),
                                 )
                                     .map_err(|err, _, _| println!("Error {:?}", err))
-                                    .and_then(|res, act, ctx| {
+                                    .and_then(|_res, _act, _ctx| {
                                         fut::ok(())
                                     })
                             }),
@@ -173,7 +173,7 @@ impl Handler<InitRaft> for RaftClient {
 
         fut::wrap_future::<_, Self>(Delay::new(Instant::now() + Duration::from_secs(5)))
             .map_err(|_, _, _| ())
-            .and_then(move |_, act, ctx| {
+            .and_then(move |_, act, _ctx| {
                 fut::wrap_future::<_, Self>(
                     act.raft
                         .as_ref()
@@ -217,7 +217,7 @@ impl Handler<ClientRequest> for RaftClient {
         ctx.spawn(
             fut::wrap_future::<_, Self>(self.net.as_ref().unwrap().send(GetCurrentLeader))
                 .map_err(|err, _, _| panic!(err))
-                .and_then(move |res, act, ctx| {
+                .and_then(move |res, act, _ctx| {
                     let leader = res.unwrap();
 
                     if leader == act.id {
@@ -225,7 +225,7 @@ impl Handler<ClientRequest> for RaftClient {
                             return fut::Either::A(
                                 fut::wrap_future::<_, Self>(raft.send(payload))
                                     .map_err(|err, _, _| panic!(err))
-                                    .and_then(|res, act, ctx| {
+                                    .and_then(|res, _act, ctx| {
                                         fut::ok(handle_client_response(res, ctx, msg))
                                     }),
                             );
@@ -234,14 +234,14 @@ impl Handler<ClientRequest> for RaftClient {
 
                     fut::Either::B(
                         fut::wrap_future::<_, Self>(act.net.as_ref().unwrap().send(GetNodeById(leader)))
-                            .map_err(move |err, _, _| panic!("Node {} not found", leader))
-                            .and_then(move |node, act, ctx| {
+                            .map_err(move |_err, _, _| panic!("Node {} not found", leader))
+                            .and_then(move |node, _act, _ctx| {
                                 println!("About to do something with node {}", leader);
                                 fut::wrap_future::<_, Self>(
                                     node.unwrap().send(SendRemoteMessage(payload)),
                                 )
                                     .map_err(|err, _, _| println!("Error {:?}", err))
-                                    .and_then(|res, act, ctx| {
+                                    .and_then(|res, _act, ctx| {
                                         fut::ok(handle_client_response(res, ctx, msg))
                                     })
                             }),

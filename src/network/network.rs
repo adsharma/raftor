@@ -19,10 +19,8 @@ use crate::network::{
 use crate::config::{ConfigSchema, NodeInfo, NetworkType};
 use crate::hash_ring::RingType;
 use crate::raft::{
-    storage::{self, *},
     RaftClient,
     RemoveNode,
-    AddNode,
 };
 use crate::server;
 use crate::utils::generate_node_id;
@@ -39,15 +37,15 @@ pub struct Network {
     net_type: NetworkType,
     address: Option<String>,
     discovery_host: String,
-    peers: Vec<String>,
+    _peers: Vec<String>,
     nodes: BTreeMap<NodeId, Addr<Node>>,
     nodes_connected: Vec<NodeId>,
     pub isolated_nodes: Vec<NodeId>,
     nodes_info: HashMap<NodeId, NodeInfo>,
-    server: Option<Addr<server::Server>>,
+    _server: Option<Addr<server::Server>>,
     state: NetworkState,
     metrics: Option<RaftMetrics>,
-    sessions: BTreeMap<NodeId, Addr<NodeSession>>,
+    _sessions: BTreeMap<NodeId, Addr<NodeSession>>,
     ring: RingType,
     raft: Addr<RaftClient>,
     registry: Arc<RwLock<HandlerRegistry>>,
@@ -62,15 +60,15 @@ impl Network {
             address: None,
             net_type: net_type,
             discovery_host: discovery_host,
-            peers: Vec::new(),
+            _peers: Vec::new(),
             nodes: BTreeMap::new(),
             nodes_connected: Vec::new(),
             isolated_nodes: Vec::new(),
             nodes_info: HashMap::new(),
-            server: None,
+            _server: None,
             state: NetworkState::Initialized,
             metrics: None,
-            sessions: BTreeMap::new(),
+            _sessions: BTreeMap::new(),
             ring: ring,
             raft: raft,
             registry: registry,
@@ -123,7 +121,7 @@ impl Network {
 
     /// Isolate the network of the specified node.
     pub fn isolate_node(&mut self, id: NodeId) {
-        if let Some((idx, _)) = self.isolated_nodes.iter().enumerate().find(|(_, e)| *e == &id) {
+        if let Some((_idx, _)) = self.isolated_nodes.iter().enumerate().find(|(_, e)| *e == &id) {
             return ();
         }
 
@@ -165,7 +163,7 @@ impl Handler<NodeDisconnect> for Network {
                 if leader == id {
                     fut::wrap_future::<_, Self>(Delay::new(Instant::now() + Duration::from_secs(1)))
                         .map_err(|_, _, _| ())
-                        .and_then(|_, act, ctx| {
+                        .and_then(|_, _act, ctx| {
                             ctx.notify(msg);
                             fut::ok(())
                         }).spawn(ctx);
@@ -176,7 +174,7 @@ impl Handler<NodeDisconnect> for Network {
                 if leader == act.id {
                     Arbiter::spawn(act.raft.send(RemoveNode(id))
                                    .map_err(|_| ())
-                                   .and_then(|res| {
+                                   .and_then(|_res| {
                                        futures::future::ok(())
                                    }));
                 }
@@ -204,7 +202,7 @@ pub struct RestoreNode(pub NodeId);
 impl Handler<RestoreNode> for Network {
     type Result = ();
 
-    fn handle(&mut self, msg: RestoreNode, ctx: &mut Context<Self>) {
+    fn handle(&mut self, msg: RestoreNode, _ctx: &mut Context<Self>) {
         let id = msg.0;
         self.restore_node(id);
     }
@@ -219,7 +217,7 @@ impl Message for GetClusterState {
 impl Handler<GetClusterState> for Network {
     type Result = Result<NetworkState, ()>;
 
-    fn handle(&mut self, _: GetClusterState, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, _: GetClusterState, _ctx: &mut Context<Self>) -> Self::Result {
         Ok(self.state.clone())
     }
 }
@@ -230,7 +228,7 @@ pub struct SetClusterState(pub NetworkState);
 impl Handler<SetClusterState> for Network {
     type Result = ();
 
-    fn handle(&mut self, msg: SetClusterState, ctx: &mut Context<Self>) {
+    fn handle(&mut self, msg: SetClusterState, _ctx: &mut Context<Self>) {
         self.state = msg.0;
     }
 }
@@ -244,7 +242,7 @@ impl Message for GetNodes {
 impl Handler<GetNodes> for Network {
     type Result = Result<HashMap<NodeId, NodeInfo>, ()>;
 
-    fn handle(&mut self, _: GetNodes, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, _: GetNodes, _ctx: &mut Context<Self>) -> Self::Result {
         let nodes = self.nodes_info.clone();
         Ok(nodes)
     }
@@ -283,7 +281,7 @@ impl Actor for Network {
         self.listen(ctx);
         self.nodes_connected.push(self.id);
 
-        let mut client = Client::default();
+        let client = Client::default();
 
         fut::wrap_future::<_, Self>(client.get(cluster_state_route).send())
             .map_err(|_, _, _| ())
@@ -298,7 +296,7 @@ impl Actor for Network {
                             // TODO:: Send register command to cluster
                             return fut::Either::A(fut::wrap_future::<_, Self>(client.get(cluster_nodes_route).send())
                                                   .map_err(|e, _, _| println!("HTTP Cluster Error {:?}", e))
-                                                  .and_then(|res, act, _| {
+                                                  .and_then(|res, _act, _| {
                                                       let mut res = res;
                                                       fut::wrap_future::<_, Self>(res.body()).then(|resp, act, _| {
                                                           if let Ok(body) = resp {
@@ -405,7 +403,7 @@ impl Message for GetNodeById {
 impl Handler<GetNodeById> for Network {
     type Result = Result<Addr<Node>, ()>;
 
-    fn handle(&mut self, msg: GetNodeById, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: GetNodeById, _ctx: &mut Context<Self>) -> Self::Result {
         if let Some(ref node) = self.get_node(msg.0) {
             Ok((*node).clone())
         } else {
@@ -440,7 +438,7 @@ where
 {
     type Result = ();
 
-    fn handle(&mut self, msg: DistributeMessage<M>, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: DistributeMessage<M>, _ctx: &mut Context<Self>) -> Self::Result {
         let ring = self.ring.read().unwrap();
         let node_id = ring.get_node(msg.0.clone()).unwrap();
 
@@ -457,7 +455,7 @@ where
 {
     type Result = Response<M::Result, ()>;
 
-    fn handle(&mut self, msg: DistributeAndWait<M>, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: DistributeAndWait<M>, _ctx: &mut Context<Self>) -> Self::Result {
         let ring = self.ring.read().unwrap();
         let node_id = ring.get_node(msg.0.clone()).unwrap();
 
@@ -483,7 +481,7 @@ impl Message for GetNode {
 impl Handler<GetNode> for Network {
     type Result = Result<(NodeId, String), ()>;
 
-    fn handle(&mut self, msg: GetNode, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: GetNode, _ctx: &mut Context<Self>) -> Self::Result {
         let ring = self.ring.read().unwrap();
         let node_id = ring.get_node(msg.0).unwrap();
 
@@ -518,7 +516,7 @@ impl Message for GetCurrentLeader {
 impl Handler<GetCurrentLeader> for Network {
     type Result = ResponseActFuture<Self, NodeId, ()>;
 
-    fn handle(&mut self, msg: GetCurrentLeader, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: GetCurrentLeader, _ctx: &mut Context<Self>) -> Self::Result {
         if let Some(ref mut metrics) = self.metrics {
             if let Some(leader) = metrics.current_leader {
                 Box::new(fut::result(Ok(leader)))

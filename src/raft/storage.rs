@@ -574,7 +574,7 @@ impl Message for GetNode {
 impl Handler<GetNode> for MemoryStorage {
     type Result = Result<NodeId, ()>;
 
-    fn handle(&mut self, msg: GetNode, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: GetNode, _ctx: &mut Context<Self>) -> Self::Result {
         let ring = self.ring.read().unwrap();
         if let Some(node_id) = ring.get_node(msg.0) {
             Ok(*node_id)
